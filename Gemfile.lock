@@ -1,5 +1,5 @@
 GEM
-  remote: https://rubygems.org/
+  remote: https://ruby.taobao.org/
   specs:
     blankslate (2.1.2.4)
     bourbon (4.0.2)
@@ -101,3 +101,6 @@ DEPENDENCIES
   neat
   octopress (~> 3.0.0.rc.12)
   sass
+
+BUNDLED WITH
+   1.10.6

@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>shiziwen&#39;s Tech Blog</title>
+    <description>Collection of everythings I want to record down especially for tech</description>
+    <link>http://shiziwen.github.io/</link>
+    <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Wed, 02 Dec 2015 20:30:40 +0800</pubDate>
+    <lastBuildDate>Wed, 02 Dec 2015 20:30:40 +0800</lastBuildDate>
+    <generator>Jekyll v2.4.0</generator>
+    
+      <item>
+        <title>Django with Celery</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;Celery是在处理异步任务时的一种常用选择，本文介绍了在生产环境下使用Celery的方法。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://shiziwen.github.io/python/django-with-celery/&quot;&gt;http://shiziwen.github.io/python/django-with-celery/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;rabbitmq&quot;&gt;RabbitMQ&lt;/h2&gt;
+&lt;p&gt;这里选择RabbitMQ作为Celery的broker，&lt;a href=&quot;http://docs.celeryproject.org/en/latest/getting-started/brokers/rabbitmq.html&quot;&gt;官方文档&lt;/a&gt;。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#apt-get install rabbitmq-server
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;检查状态：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;# rabbitmqctl status
+Status of node rabbit@iZ25wmn985wZ ...
+[{pid,13336},
+ {running_applications,[{rabbit,&quot;RabbitMQ&quot;,&quot;3.2.4&quot;},
+                        {mnesia,&quot;MNESIA  CXC 138 12&quot;,&quot;4.11&quot;},
+                        {os_mon,&quot;CPO  CXC 138 46&quot;,&quot;2.2.14&quot;},
+                        {xmerl,&quot;XML parser&quot;,&quot;1.3.5&quot;},
+                        {sasl,&quot;SASL  CXC 138 11&quot;,&quot;2.3.4&quot;},
+                        {stdlib,&quot;ERTS  CXC 138 10&quot;,&quot;1.19.4&quot;},
+                        {kernel,&quot;ERTS  CXC 138 10&quot;,&quot;2.16.4&quot;}]},
+ {os,{unix,linux}},
+ {erlang_version,&quot;Erlang R16B03 (erts-5.10.4) [source] [64-bit] [smp:2:2] [async-threads:30] [kernel-poll:true]\n&quot;},
+ {memory,[{total,53549552},
+          {connection_procs,208096},
+          {queue_procs,69528},
+          {plugins,0},
+          {other_proc,13387408},
+          {mnesia,72904},
+          {mgmt_db,0},
+          {msg_index,58336},
+          {other_ets,791344},
+          {binary,13155032},
+          {code,16522377},
+          {atom,594537},
+          {other_system,8689990}]},
+ {vm_memory_high_watermark,0.4},
+ {vm_memory_limit,839063961},
+ {disk_free_limit,50000000},
+ {disk_free,15092719616},
+ {file_descriptors,[{total_limit,65435},
+                    {total_used,9},
+                    {sockets_limit,58889},
+                    {sockets_used,6}]},
+ {processes,[{limit,1048576},{used,177}]},
+ {run_queue,0},
+ {uptime,389999}]
+...done.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;挡在本地使用RabbitMQ的时候，可以直接使用guest用户。如果要远程使用，则需要建立一个新的用户：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#sudo rabbitmqctl add_user &amp;lt;username&amp;gt; &amp;lt;password&amp;gt;
+#sudo rabbitmqctl set_permissions -p / &amp;lt;username&amp;gt; &quot;.*&quot; &quot;.*&quot; &quot;.*&quot;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在Django的settings.py中指定broker：&lt;br /&gt;
+&lt;code&gt;
+BROKER_URL = &#39;amqp://guest:guest@localhost:5672//&#39;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;celery&quot;&gt;Celery&lt;/h2&gt;
+&lt;p&gt;### 安装&lt;br /&gt;
+&lt;code&gt;
+#source ../bin/activate
+#pip install celery
+&lt;/code&gt;&lt;br /&gt;
+进入app的目录，建立celery.py文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;from __future__ import absolute_import
+
+import os
+
+from celery import Celery
+
+# set the default Django settings module for the &#39;celery&#39; program.
+os.environ.setdefault(&#39;DJANGO_SETTINGS_MODULE&#39;, &#39;your_app.settings&#39;)
+
+from django.conf import settings  # noqa
+
+app = Celery(&#39;your_app&#39;)
+
+# Using a string here means the worker will not have to
+# pickle the object when using Windows.
+app.config_from_object(&#39;django.conf:settings&#39;)
+app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+
+
+@app.task(bind=True)
+def debug_task(self):
+    print(&#39;Request: {0!r}&#39;.format(self.request))
+
+@app.task()
+def add_test(a, b):
+    import time
+    time.sleep(30)
+    return a+b
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;也可以建立一个tasks.py文件单独定义任务：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;from your_app.celery import app as celery
+
+@celery.task
+def add(x, y):
+    return x + y
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在your_app/&lt;strong&gt;init&lt;/strong&gt;.py中添加如下代码，可以在Django启动的时候，加载Celery app.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;  1 from __future__ import absolute_import
+  2
+  3 # This will make sure the app is always imported when
+  4 # Django starts so that shared_task will use this app.
+  5 from .celery import app as celery_app  # noqa
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;section&quot;&gt;测试&lt;/h3&gt;
+&lt;p&gt;此时，就可以进行任务测试了。&lt;br /&gt;
+shellA启动Celery的worker：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#celery -A picha worker -l info
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;shellB调用任务：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#python manage.py shell	
+#from your_app.celery import add_rest
+#add_test.delay(3,5)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以在shellA中，看到相关的结果。&lt;/p&gt;
+
+&lt;h2 id=&quot;django-celery&quot;&gt;django-celery&lt;/h2&gt;
+&lt;p&gt;使用Django-celery作为celery的结果存储。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#pip install django-celery
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;修改setting.py文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;import pytz
+from pytz import *
+CELERY_ENABLE_UTC = True
+# CELERY_TIMEZONE = &#39;UTC&#39;
+CELERY_TIMEZONE = &#39;Asia/Shanghai&#39;
+CELERY_RESULT_BACKEND=&#39;djcelery.backends.database:DatabaseBackend&#39;
+CELERY_ACCEPT_CONTENT = [&#39;application/json&#39;]
+CELERY_TASK_SERIALIZER = &#39;json&#39;
+CELERY_RESULT_SERIALIZER = &#39;json&#39;
+
+# needed for worker monitoring
+CELERY_SEND_EVENTS = True
+
+# django-celery
+import djcelery
+djcelery.setup_loader()
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;要在django中看到相关任务的状态，需要启动cam：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;python manage.py celerycam --frequency=10.0
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;supervisorcelery&quot;&gt;supervisor管理celery&lt;/h2&gt;
+
+&lt;pre&gt;&lt;code&gt;apt-get install supervisor
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在your_app中建立一个deploy的目录，生成3个文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;path_to_your_app/deploy# ls
+supervisor.celerybeat.conf  supervisor.celerycam.conf  supervisor.celeryd.conf
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;文件的配置可以参考&lt;a href=&quot;https://github.com/celery/celery/tree/3.1/extra/supervisord&quot;&gt;supervisor&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;把配置文件添加到supervisor配置目录：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;cd /etc/supervisor/conf.d
+sudo ln -s /path/to/django_project/deploy/supervisor.celeryd.conf
+sudo ln -s /path/to/django_project/deploy/supervisor.celerybeat.conf
+sudo ln -s /path/to/django_project/deploy/supervisor.celerycam.conf
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;重启服务：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;sudo supervisorctl reload
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这里要注意相关目录的建立，以及用户的使用，不然会报错。&lt;br /&gt;
+通过&lt;code&gt;ps auxf&lt;/code&gt;查看相关进程是否启动。可以通过相关的日志文件找到错误。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;参考资料&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://docs.celeryproject.org/en/latest/getting-started/first-steps-with-celery.html#first-steps&quot;&gt;First Steps with Celery&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.caktusgroup.com/blog/2014/06/23/scheduling-tasks-celery/&quot;&gt;Getting Started Scheduling Tasks with Celery&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://gpiot.com/blog/timezone-definition-issue-django-16/&quot;&gt;Timezone definition issue in Django 1.6&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.lexev.org/en/2014/django-celery-setup/&quot;&gt;Django celery setup&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://realpython.com/blog/python/asynchronous-tasks-with-django-and-celery/&quot;&gt;Asynchronous Tasks With Django and Celery&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.caktusgroup.com/blog/2014/09/29/celery-production/&quot;&gt;Celery in Production&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://kronosapiens.github.io/blog/2015/04/28/rabbitmq-aws.html&quot;&gt;Setting up a queue service: Django, RabbitMQ, Celery on AWS&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;section-2&quot;&gt;问题&lt;/h2&gt;
+&lt;p&gt;### 一&lt;br /&gt;
+使用过程中，发现celery的worker进程占用较高的CPU（36%），查了一下work的log，发现&lt;code&gt;Using settings.DEBUG leads to a memory leak, never&lt;/code&gt;的内容，修改了DEBUG为False之后，重启服务，发现CPU降到了2%左右。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#export C_FORCE_ROOT=&quot;true&quot;
+#celery -A dongyidong worker -l info
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;section-3&quot;&gt;二&lt;/h3&gt;
+&lt;p&gt;在指定timezone的时候，出现了如下错误：&lt;br /&gt;
+&lt;code&gt;
+Database returned an invalid value in QuerySet.dates(). Are time zone definitions and pytz installed?
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;按照参考资料三中的内容修复了问题。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+        <pubDate>Thu, 03 Dec 2015 04:44:03 +0800</pubDate>
+	<link>http://shiziwen.github.io/python/django-with-celery/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/python/django-with-celery/</guid>
+        
+        
+        <category>python</category>
+        
+      </item>
+    
+      <item>
+        <title>Django中获取choices的value</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;本文介绍如何在Django中获取choices的value&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://shiziwen.github.io/python/django-choices/&quot;&gt;http://shiziwen.github.io/python/django-choices/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;使用&lt;code&gt;get_modle_display()&lt;/code&gt;函数即可。&lt;/p&gt;
+
+&lt;p&gt;例如：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;from django.db import models
+class Person(models.Model):
+    GENDER_CHOICES = (
+        (u&#39;M&#39;, u&#39;Male&#39;),
+        (u&#39;F&#39;, u&#39;Female&#39;),
+    )
+    name = models.CharField(max_length=60)
+    gender = models.CharField(max_length=2, choices=GENDER_CHOICES)
+    
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;获取gender的值：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;gt;&amp;gt;&amp;gt; p = Person(name=&quot;Fred Flinstone&quot;, gender=&quot;M&quot;)
+&amp;gt;&amp;gt;&amp;gt; p.save()
+&amp;gt;&amp;gt;&amp;gt; p.gender
+u&#39;M&#39;
+&amp;gt;&amp;gt;&amp;gt; p.get_gender_display()
+u&#39;Male&#39;
+&lt;/code&gt;&lt;/pre&gt;
+
+</description>
+        <pubDate>Sat, 28 Nov 2015 04:44:03 +0800</pubDate>
+	<link>http://shiziwen.github.io/python/django-choices/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/python/django-choices/</guid>
+        
+        
+        <category>python</category>
+        
+      </item>
+    
+      <item>
+        <title>Django在list_display和search__fields中使用外键</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;本文减少Django在list_display和search__fields中使用外键的方法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://shiziwen.github.io/python/django-list_display-search_fields/&quot;&gt;http://shiziwen.github.io/python/django-list_display-search_fields/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;listdisplay&quot;&gt;一. list_display中使用外键&lt;/h2&gt;
+&lt;p&gt;在admin中定义一个函数，获取想要获得外键的值，然后将函数名写在list_display中。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;class HelloAdmin(admin.ModelAdmin):
+    list_display = (&#39;user&#39;, &#39;user_email&#39;, &#39;role&#39;)
+    # ...
+
+    # 显示用户邮箱地址
+    def user_email(self, obj):
+        return u&#39;%s&#39; % obj.user.email
+    user_email.short_description = u&#39;邮箱&#39;
+
+admin.site.register(Hello, HelloAdmin)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;searchfields&quot;&gt;二. search_fields中使用外键&lt;/h2&gt;
+&lt;p&gt;将 search_fields 中的外键字段改为 foreign_key__related_fieldname 这种形式就可以了。 这种用法适用于 ForeignKey 及 ManyToManyField。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;class Hello(models.Model):
+    name = models.CharField(max_length=100)
+
+    #...
+
+
+class Foo(models.Model):
+    hello = models.ForeignKey(Hello)
+
+
+class FooAdmin(admin.ModelAdmin):
+    search_fields = (&#39;hello__name&#39;,)  # 搜索 Hello 中的 name 字段
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;三. 参考资料&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://mozillazg.com/2013/04/django-admin-list_display-include-foreignkey.html&quot;&gt;[django]list_display 中包含外键内的字段 &lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://mozillazg.com/2013/04/django-search_fields-include-foreign-key-field.html&quot;&gt;[django]如何在 search_fields 中包含外键字段&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Wed, 25 Nov 2015 04:44:03 +0800</pubDate>
+	<link>http://shiziwen.github.io/python/django-list_display-search_fields/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/python/django-list_display-search_fields/</guid>
+        
+        
+        <category>python</category>
+        
+      </item>
+    
+      <item>
+        <title>Vim for Python</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;本文介绍使用与Python开发环境的Vim配置&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://cenalulu.github.io/linux/vim-for-python/&quot;&gt;http://cenalulu.github.io/linux/vim-for-python/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;资料&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://gold.xitu.io/entry/564d61e560b294bc12973107&quot;&gt;Vim 与 Python 真乃天作之合&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://realpython.com/blog/python/vim-and-python-a-match-made-in-heaven/&quot;&gt;VIM and Python - a Match Made in Heaven&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/j1z0/vim-config/blob/master/vimrc&quot;&gt;Vim配置文件链接&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;vim&quot;&gt;vim版本&lt;/h2&gt;
+&lt;p&gt;vim的版本需要&amp;gt;7.3&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$vim --version
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;vundle&quot;&gt;安装Vundle&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;vimrc&quot;&gt;编写.vimrc&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$touch ~/.vimrc
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以参考文章开头列出的资料&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;安装插件&lt;/h2&gt;
+&lt;p&gt;在vim中，输入命令&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;:PluginInstall
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;ycm&quot;&gt;安装YCM&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$sudo apt-get install build-essential cmake
+$cd ~/.vim/bundle/YouCompleteMe
+$./install.py --clang-completer
+&lt;/code&gt;&lt;/pre&gt;
+
+</description>
+        <pubDate>Tue, 24 Nov 2015 14:54:18 +0800</pubDate>
+	<link>http://shiziwen.github.io/linux/vim-for-python/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/linux/vim-for-python/</guid>
+        
+        
+        <category>linux</category>
+        
+      </item>
+    
+      <item>
+        <title>Ansible(一)</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;Ansible是用Python实现的一种常用的部署工具，本文介绍它的基本使用方法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://shiziwen.github.io/python/ansible-1/&quot;&gt;http://shiziwen.github.io/python/ansible-1/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;##一. 资料&lt;br /&gt;
+* &lt;a href=&quot;https://github.com/ansible&quot;&gt;GitHub&lt;/a&gt;&lt;br /&gt;
+* &lt;a href=&quot;https://galaxy.ansible.works.com&quot;&gt;Playbook分享平台&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;##二. 特点&lt;br /&gt;
+* 只需要在主控机上部署&lt;br /&gt;
+* 默认使用SSH对设备进行管理&lt;br /&gt;
+* 使用YML格式描述配置&lt;/p&gt;
+
+&lt;p&gt;##三. 安装&lt;br /&gt;
+### mac&lt;br /&gt;
+&lt;code&gt;
+$ sudo pip install ansible
+Password:
+The directory &#39;/Users/mac/Library/Caches/pip/http&#39; or its parent directory is not owned by the current user and the cache has been disabled. Please check the permissions and owner of that directory. If executing pip with sudo, you may want sudo&#39;s -H flag.
+The directory &#39;/Users/mac/Library/Caches/pip&#39; or its parent directory is not owned by the current user and caching wheels has been disabled. check the permissions and owner of that directory. If executing pip with sudo, you may want sudo&#39;s -H flag.
+Collecting ansible
+  Downloading ansible-1.9.4.tar.gz (937kB)
+    100% |████████████████████████████████| 937kB 203kB/s
+Collecting paramiko (from ansible)
+  Downloading paramiko-1.16.0-py2.py3-none-any.whl (169kB)
+    100% |████████████████████████████████| 172kB 2.4MB/s
+Collecting jinja2 (from ansible)
+  Downloading Jinja2-2.8-py2.py3-none-any.whl (263kB)
+    100% |████████████████████████████████| 266kB 229kB/s
+Collecting PyYAML (from ansible)
+  Downloading PyYAML-3.11.tar.gz (248kB)
+    100% |████████████████████████████████| 249kB 203kB/s
+Requirement already satisfied (use --upgrade to upgrade): setuptools in /System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python (from ansible)
+Collecting pycrypto&amp;gt;=2.6 (from ansible)
+  Downloading pycrypto-2.6.1.tar.gz (446kB)
+    100% |████████████████████████████████| 446kB 190kB/s
+Collecting ecdsa&amp;gt;=0.11 (from paramiko-&amp;gt;ansible)
+  Downloading ecdsa-0.13-py2.py3-none-any.whl (86kB)
+    100% |████████████████████████████████| 90kB 236kB/s
+Collecting MarkupSafe (from jinja2-&amp;gt;ansible)
+  Downloading MarkupSafe-0.23.tar.gz
+Installing collected packages: ecdsa, pycrypto, paramiko, MarkupSafe, jinja2, PyYAML, ansible
+  Running setup.py install for pycrypto
+  Running setup.py install for MarkupSafe
+  Running setup.py install for PyYAML
+  Running setup.py install for ansible
+Successfully installed MarkupSafe-0.23 PyYAML-3.11 ansible-1.9.4 ecdsa-0.13 jinja2-2.8 paramiko-1.16.0 pycrypto-2.6.1
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;unbuntu&quot;&gt;unbuntu&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;apt-get install ansible
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;ssh&quot;&gt;四. ssh无密码访问&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;ssh-keygen -t rsa
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;有询问的地方直接按回车，在/root/.ssh/下生成一对秘钥，id_rsa为私钥，id_rsa.pub为公钥（需要下发到被控主机用户.ssh目录，同时要求重命名为authorized_keys文件）&lt;/p&gt;
+
+&lt;p&gt;使用ssh-copy-id公钥拷贝工具：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ssh-copy-id -i /root/.ssh/id_rsa.pub root@192.168.1.21
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;五. 命令&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;ansible &amp;lt;pattern_goes_here&amp;gt; -m &amp;lt;module_name&amp;gt; -a &amp;lt;arguments&amp;gt; 
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;默认模块为command，即“-m command”可以省略。&lt;/p&gt;
+
+&lt;p&gt;获得模块帮助说明信息格式：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ansible-doc &amp;lt;模块名&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+
+</description>
+        <pubDate>Thu, 19 Nov 2015 04:44:03 +0800</pubDate>
+	<link>http://shiziwen.github.io/python/ansible-1/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/python/ansible-1/</guid>
+        
+        
+        <category>python</category>
+        
+      </item>
+    
+      <item>
+        <title>VirtualBox中拷贝vdi文件</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;通过拷贝vdi文件可以快速搭建虚拟机，下面介绍操作的方法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://cenalulu.github.io/linux/virtualbox-copy-vdi/&quot;&gt;http://cenalulu.github.io/linux/virtualbox-copy-vdi/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;资料&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://gold.xitu.io/entry/564d61e560b294bc12973107&quot;&gt;Vim 与 Python 真乃天作之合&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://realpython.com/blog/python/vim-and-python-a-match-made-in-heaven/&quot;&gt;VIM and Python - a Match Made in Heaven&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/j1z0/vim-config/blob/master/vimrc&quot;&gt;Vim配置文件链接&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;vim&quot;&gt;vim版本&lt;/h2&gt;
+&lt;p&gt;vim的版本需要&amp;gt;7.3&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$vim --version
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;vundle&quot;&gt;安装Vundle&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$git clone https://github.com/gmarik/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;vimrc&quot;&gt;编写.vimrc&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$touch ~/.vimrc
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以参考文章开头列出的资料&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;安装插件&lt;/h2&gt;
+&lt;p&gt;在vim中，输入命令&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;:PluginInstall
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;ycm&quot;&gt;安装YCM&lt;/h2&gt;
+&lt;pre&gt;&lt;code&gt;$sudo apt-get install build-essential cmake
+$cd ~/.vim/bundle/YouCompleteMe
+$./install.py --clang-completer
+&lt;/code&gt;&lt;/pre&gt;
+
+</description>
+        <pubDate>Wed, 18 Nov 2015 02:54:18 +0800</pubDate>
+	<link>http://shiziwen.github.io/linux/virtualbox-copy-vdi/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/linux/virtualbox-copy-vdi/</guid>
+        
+        
+        <category>linux</category>
+        
+      </item>
+    
+      <item>
+        <title>ssh无密码访问</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;本文介绍通过ssh无密码连接服务器的方法&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://cenalulu.github.io/linux/ssh-no-password/&quot;&gt;http://cenalulu.github.io/linux/ssh-no-password/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;pre&gt;&lt;code&gt;ssh-keygen -t rsa
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;有询问的地方直接按回车，在/root/.ssh/下生成一对秘钥，id_rsa为私钥，id_rsa.pub为公钥（需要下发到被控主机用户.ssh目录，同时要求重命名为authorized_keys文件）&lt;/p&gt;
+
+&lt;p&gt;使用ssh-copy-id公钥拷贝工具：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ssh-copy-id -i /root/.ssh/id_rsa.pub root@192.168.1.21
+&lt;/code&gt;&lt;/pre&gt;
+</description>
+        <pubDate>Wed, 18 Nov 2015 01:52:18 +0800</pubDate>
+	<link>http://shiziwen.github.io/linux/ssh-no-password/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/linux/ssh-no-password/</guid>
+        
+        
+        <category>linux</category>
+        
+      </item>
+    
+  </channel>
+</rss>
