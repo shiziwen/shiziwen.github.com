@@ -4,9 +4,9 @@ title: "Django在list_display和search__fields中使用外键"
 categories: python
 #excerpt:
 #tags: []
-#image:
+image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/xxx
+    teaser: /teaser/django.png
 #    thumb:
 date: 2015-11-24T21:44:03+01:00
 ---

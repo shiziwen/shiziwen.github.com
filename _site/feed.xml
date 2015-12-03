@@ -5,9 +5,223 @@
     <description>Collection of everythings I want to record down especially for tech</description>
     <link>http://shiziwen.github.io/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 02 Dec 2015 21:08:20 +0800</pubDate>
-    <lastBuildDate>Wed, 02 Dec 2015 21:08:20 +0800</lastBuildDate>
+    <pubDate>Thu, 03 Dec 2015 23:11:22 +0800</pubDate>
+    <lastBuildDate>Thu, 03 Dec 2015 23:11:22 +0800</lastBuildDate>
     <generator>Jekyll v2.4.0</generator>
+    
+      <item>
+        <title>Git命令（一）</title>
+        <description>&lt;blockquote&gt;
+  &lt;p&gt;本篇文章记录了一些git经常会用到的一些命令，以便今后查找&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;文章欢迎转载，但转载时请保留本段文字，并置于文章的顶部&lt;br /&gt;
+作者：张纹华(shiziwen)&lt;br /&gt;
+本文原文地址：&lt;a href=&quot;http://shiziwen.github.io/linux/git-command-1/&quot;&gt;http://shiziwen.github.io/linux/git-command-1/&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h1 id=&quot;git&quot;&gt;git命令&lt;/h1&gt;
+
+&lt;h2 id=&quot;git-commit--amend&quot;&gt;git commit -amend&lt;/h2&gt;
+&lt;p&gt;修改已经提交的commit。&lt;br /&gt;
+&amp;gt; Sometimes a mistake is made in a commit, but this is easy to correct with git commit –amend. When you use this command, git creates a new commit with the same parent as the current commit. (The old commit will be discarded if nothing else references it.)&lt;/p&gt;
+
+&lt;div style=&quot;text-align: center&quot;&gt;
+&lt;img src=&quot;../../images/linux/git_command_1/commit-amend.svg&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;diff&quot;&gt;diff&lt;/h2&gt;
+
+&lt;p&gt;查看暂存区域文件和最近提交的历史文件有何区别：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git diff --staged
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在最后一次提交之后所做的修改：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git diff HEAD
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;显示一些小的改动：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git diff --color-words
+git diff --word-diff
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;查看修改了的文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git diff --stat
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;log&quot;&gt;log&lt;/h2&gt;
+
+&lt;p&gt;查看简洁的log：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --oneline
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;查看每次提交包含的文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --stat
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;产看每次提价修改的内容：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --patch
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;组合使用：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --patch --oneline
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;用ASCII码显示代码结构：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --graph
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --graph --all --decorate --oneline
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;remove&quot;&gt;remove&lt;/h2&gt;
+
+&lt;p&gt;使用下面的命令，git会遍历工作数，寻找之前git已经识别到的现在要消失的文件，然后作为新的删除来暂存：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git add -u .
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;不再跟踪某个文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git rm --cached files
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;move&quot;&gt;move&lt;/h2&gt;
+
+&lt;p&gt;移动文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git mv source dest
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;从当前目录无线向下递归，发现所有的移动过去的新文件，删除原来所有的旧文件，然后解释为已经发生了移动：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git add -A .
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;使用日志命令来展示某个文件在移动过程中的历史，&lt;br /&gt;
+获取某个文件的全部提交：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --stat -- filename
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;告诉日志在文件移动过程中跟踪文件：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git log --stat -M --follow -- filename
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;ignore&quot;&gt;ignore&lt;/h2&gt;
+
+&lt;p&gt;显示哪些文件被忽略了：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git ls-files --others --ignored --exclude-standard
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;branch&quot;&gt;branch&lt;/h2&gt;
+
+&lt;p&gt;删除分支：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git branch -d XXX
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;强制删除：&lt;br /&gt;
+&lt;code&gt;
+git branch -D XXX
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;checkout&quot;&gt;checkout&lt;/h2&gt;
+
+&lt;p&gt;清理最后一次commit的内容：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git checkout -- filename
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;merge&quot;&gt;merge&lt;/h2&gt;
+
+&lt;p&gt;清除你的工作目录，从你当前分支的最后一次提交中，它同样会清除你的暂存区：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git merge --abort
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;不想把历史汇聚起来，但是想要一个具体分支中的全部commit：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git merge --squash branch-name
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;它会在你目前切换到的分支上，为你创建一个新的提交，这代表了目标分支上的所有改变。&lt;/p&gt;
+
+&lt;h2 id=&quot;remote&quot;&gt;remote&lt;/h2&gt;
+
+&lt;p&gt;修改远端url：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git remote set-url origin http://XXX
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;删除：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git remote rm origin
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;查看远端分支：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git branch -r
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;reset&quot;&gt;reset&lt;/h2&gt;
+&lt;p&gt;reset有三种模式，mixed，soft，hard。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;mixed是默认模式，它修改了历史和工作目录；&lt;/li&gt;
+  &lt;li&gt;soft模式是选取一条或者多条commit，把它们的全部改变放到暂存区，让你在此基础上继续创建新的提交；&lt;/li&gt;
+  &lt;li&gt;hard是一个具有破坏性的操作，这意味着擦除掉你不想再保存的东西；&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;git reset HEAD&lt;/code&gt;，允许我们把这些改变移除暂存区。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;git reset --soft HEAD~5&lt;/code&gt;，可以把最新的5条commit当做一次提交，压缩到暂存区，这对重塑历史非常有帮助。&lt;/p&gt;
+
+&lt;p&gt;如果你想完全丢掉一些你的工作，可能想丢掉一些不再发挥作用的变动，你可以使用&lt;code&gt;git reset --hard&lt;/code&gt;来完全丢掉这些代码：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;git reset --hard HEAD~3
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;rebase&quot;&gt;rebase&lt;/h2&gt;
+
+&lt;pre&gt;&lt;code&gt;git checkout add-red-button
+git rebase master
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;rebase允许一个分支在历史操作中重新定位，意味着，把所有仅在你分支的所有变动，表现为，他们仿佛发生在主分支下的当前工作之后。&lt;/p&gt;
+
+&lt;p&gt;这和反向合并的方式相比，有着更加干净的历史。&lt;/p&gt;
+
+&lt;div style=&quot;text-align: center&quot;&gt;
+&lt;img src=&quot;../../images/linux/git_command_1/rebase.png&quot; /&gt;
+&lt;/div&gt;
+
+&lt;h2 id=&quot;reference&quot;&gt;Reference&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://marklodato.github.io/visual-git-guide/index-en.html&quot;&gt;A Visual Git Reference&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.nowcoder.com/courses/2/1/7&quot;&gt;GitHub&amp;amp;Git入门基础&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Thu, 03 Dec 2015 22:14:08 +0800</pubDate>
+	<link>http://shiziwen.github.io/linux/git-command-1/</link>
+	<guid isPermaLink="true">http://shiziwen.github.io/linux/git-command-1/</guid>
+        
+        
+        <category>linux</category>
+        
+      </item>
     
       <item>
         <title>Django with Celery</title>

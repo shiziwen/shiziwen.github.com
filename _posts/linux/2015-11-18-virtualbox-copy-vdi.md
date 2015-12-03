@@ -7,7 +7,7 @@ categories: linux
 #tags: []
 image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/numa.png
+    teaser: /teaser/virtualbox.png
 #    thumb:
 date: 2015-11-18T02:54:18+08:00
 ---

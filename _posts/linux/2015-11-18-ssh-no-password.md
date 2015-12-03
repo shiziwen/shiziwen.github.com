@@ -7,7 +7,7 @@ categories: linux
 #tags: []
 image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/numa.png
+    teaser: /teaser/ssh.png
 #    thumb:
 date: 2015-11-18T01:52:18+08:00
 ---

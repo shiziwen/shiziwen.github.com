@@ -4,9 +4,9 @@ title: "Django中获取choices的value"
 categories: python
 #excerpt:
 #tags: []
-#image:
+image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/xxx
+    teaser: /teaser/django.png
 #    thumb:
 date: 2015-11-27T21:44:03+01:00
 ---

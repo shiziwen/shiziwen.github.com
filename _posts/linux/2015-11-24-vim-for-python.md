@@ -7,7 +7,7 @@ categories: linux
 #tags: []
 image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/numa.png
+    teaser: /teaser/vim-brain.png
 #    thumb:
 date: 2015-11-24T14:54:18+08:00
 ---

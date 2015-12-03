@@ -4,9 +4,9 @@ title: "Django with Celery"
 categories: python
 #excerpt:
 #tags: []
-#image:
+image:
 #    feature: /teaser/xxx
-#    teaser: /teaser/xxx
+    teaser: /teaser/django-celery.png
 #    thumb:
 date: 2015-12-02T21:44:03+01:00
 ---
