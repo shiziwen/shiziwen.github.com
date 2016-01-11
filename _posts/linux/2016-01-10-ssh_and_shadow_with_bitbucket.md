@@ -20,6 +20,7 @@ date: 2016-01-10T01:37:55+08:00
 
 
 ## add ssh key
+
 ### 生成ssh key
 ```
 $ssh-keygen
@@ -31,6 +32,62 @@ $ssh-keygen
 cat ~/.ssh/bitbucket_id_rsa.pub
 ```
 将获得的代码复制bitbucket配置页面上面。
+
+
+## 配置ssh相关文件
+
+### 更新bashrc文件
+
+```
+SSH_ENV=$HOME/.ssh/environment
+
+function start_agent {
+     echo "Initialising new SSH agent..."
+     /usr/bin/ssh-agent | sed 's/^echo/#echo/' > ${SSH_ENV}
+     echo succeeded
+     chmod 600 ${SSH_ENV}
+     . ${SSH_ENV} > /dev/null
+     /usr/bin/ssh-add;
+}
+
+# Source SSH settings, if applicable
+
+if [ -f "${SSH_ENV}" ]; then
+     . ${SSH_ENV} > /dev/null
+     #ps ${SSH_AGENT_PID} doesn't work under cywgin
+     ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ > /dev/null || {
+         start_agent;
+     }
+else
+     start_agent;
+fi
+```
+
+把上面这段内容直接保存到```~/.bashrc```文件中，然后执行```source ~/.bashrc```进行加载。
+
+### 添加key
+然后进入```~/.ssh/config```目录，添加key：
+
+```
+cd ~/.ssh/config
+ssh-add  bitbucket_id_rsa
+```
+
+### 测试
+输入下面命令确认能与Bitbucket网站SSH通信：
+
+```
+ssh -T git@bitbucket.org
+```
+
+如果出现下面的信息：
+
+```
+conq: logged in as jscon.
+You can use git or hg to connect to Bitbucket. Shell access is disabled.
+```
+
+则说明你已经能用这个key与bitbucket网站SSH通信了。
 
 
 ## 创建config文件

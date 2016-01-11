@@ -5,8 +5,8 @@
     <description>Collection of everythings I want to record down especially for tech</description>
     <link>http://shiziwen.github.io/</link>
     <atom:link href="/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Sun, 10 Jan 2016 02:25:49 +0800</pubDate>
-    <lastBuildDate>Sun, 10 Jan 2016 02:25:49 +0800</lastBuildDate>
+    <pubDate>Tue, 12 Jan 2016 01:52:04 +0800</pubDate>
+    <lastBuildDate>Tue, 12 Jan 2016 01:52:04 +0800</lastBuildDate>
     <generator>Jekyll v2.4.0</generator>
     
       <item>
@@ -22,16 +22,67 @@
 &lt;/blockquote&gt;
 
 &lt;h2 id=&quot;add-ssh-key&quot;&gt;add ssh key&lt;/h2&gt;
-&lt;p&gt;### 生成ssh key&lt;br /&gt;
-&lt;code&gt;
-$ssh-keygen
-&lt;/code&gt;&lt;br /&gt;
-提示让你输入密钥的地址与名字，默认是 &lt;code&gt;~/.ssh/id_rsa&lt;/code&gt;，这里我们使用 &lt;code&gt;~/.ssh/bitbucket_id_rsa&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;ssh-key&quot;&gt;生成ssh key&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;$ssh-keygen
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;提示让你输入密钥的地址与名字，默认是 &lt;code&gt;~/.ssh/id_rsa&lt;/code&gt;，这里我们使用 &lt;code&gt;~/.ssh/bitbucket_id_rsa&lt;/code&gt;.&lt;/p&gt;
 
 &lt;h3 id=&quot;bitbucket&quot;&gt;在Bitbucket账号中添加公钥&lt;/h3&gt;
 &lt;pre&gt;&lt;code&gt;cat ~/.ssh/bitbucket_id_rsa.pub
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;将获得的代码复制bitbucket配置页面上面。&lt;/p&gt;
+
+&lt;h2 id=&quot;ssh&quot;&gt;配置ssh相关文件&lt;/h2&gt;
+
+&lt;h3 id=&quot;bashrc&quot;&gt;更新bashrc文件&lt;/h3&gt;
+
+&lt;pre&gt;&lt;code&gt;SSH_ENV=$HOME/.ssh/environment
+
+function start_agent {
+     echo &quot;Initialising new SSH agent...&quot;
+     /usr/bin/ssh-agent | sed &#39;s/^echo/#echo/&#39; &amp;gt; ${SSH_ENV}
+     echo succeeded
+     chmod 600 ${SSH_ENV}
+     . ${SSH_ENV} &amp;gt; /dev/null
+     /usr/bin/ssh-add;
+}
+
+# Source SSH settings, if applicable
+
+if [ -f &quot;${SSH_ENV}&quot; ]; then
+     . ${SSH_ENV} &amp;gt; /dev/null
+     #ps ${SSH_AGENT_PID} doesn&#39;t work under cywgin
+     ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ &amp;gt; /dev/null || {
+         start_agent;
+     }
+else
+     start_agent;
+fi
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;把上面这段内容直接保存到&lt;code&gt;~/.bashrc&lt;/code&gt;文件中，然后执行&lt;code&gt;source ~/.bashrc&lt;/code&gt;进行加载。&lt;/p&gt;
+
+&lt;h3 id=&quot;key&quot;&gt;添加key&lt;/h3&gt;
+&lt;p&gt;然后进入&lt;code&gt;~/.ssh/config&lt;/code&gt;目录，添加key：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;cd ~/.ssh/config
+ssh-add  bitbucket_id_rsa
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;section&quot;&gt;测试&lt;/h3&gt;
+&lt;p&gt;输入下面命令确认能与Bitbucket网站SSH通信：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;ssh -T git@bitbucket.org
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;如果出现下面的信息：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;conq: logged in as jscon.
+You can use git or hg to connect to Bitbucket. Shell access is disabled.
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;则说明你已经能用这个key与bitbucket网站SSH通信了。&lt;/p&gt;
 
 &lt;h2 id=&quot;config&quot;&gt;创建config文件&lt;/h2&gt;
 &lt;p&gt;在&lt;code&gt;~/.ssh/config&lt;/code&gt;文件中，填写如下内容：&lt;/p&gt;
@@ -57,7 +108,7 @@ $ssh-keygen
 
 &lt;p&gt;你会发现速度较之前是天壤之别。&lt;/p&gt;
 
-&lt;h2 id=&quot;section&quot;&gt;参考资料&lt;/h2&gt;
+&lt;h2 id=&quot;section-1&quot;&gt;参考资料&lt;/h2&gt;
 &lt;ul&gt;
   &lt;li&gt;&lt;a href=&quot;http://www.cnblogs.com/boychenney/archive/2013/04/09/bitbucket_collaboration_with_ssh.html&quot;&gt;Bitbucket上使用SSH协作&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;http://stackoverflow.com/questions/31660263/bitbucket-ssh-public-key-is-being-denied-but-their-ssh-test-connects-with-no-iss&quot;&gt;Bitbucket ssh public key is being denied but their ssh test connects with no issue&lt;/a&gt;&lt;/li&gt;

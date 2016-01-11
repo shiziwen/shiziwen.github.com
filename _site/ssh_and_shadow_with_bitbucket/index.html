@@ -167,16 +167,67 @@
 </blockquote>
 
 <h2 id="add-ssh-key">add ssh key</h2>
-<p>### 生成ssh key<br />
-<code>
-$ssh-keygen
-</code><br />
-提示让你输入密钥的地址与名字，默认是 <code>~/.ssh/id_rsa</code>，这里我们使用 <code>~/.ssh/bitbucket_id_rsa</code>.</p>
+
+<h3 id="ssh-key">生成ssh key</h3>
+<pre><code>$ssh-keygen
+</code></pre>
+<p>提示让你输入密钥的地址与名字，默认是 <code>~/.ssh/id_rsa</code>，这里我们使用 <code>~/.ssh/bitbucket_id_rsa</code>.</p>
 
 <h3 id="bitbucket">在Bitbucket账号中添加公钥</h3>
 <pre><code>cat ~/.ssh/bitbucket_id_rsa.pub
 </code></pre>
 <p>将获得的代码复制bitbucket配置页面上面。</p>
+
+<h2 id="ssh">配置ssh相关文件</h2>
+
+<h3 id="bashrc">更新bashrc文件</h3>
+
+<pre><code>SSH_ENV=$HOME/.ssh/environment
+
+function start_agent {
+     echo "Initialising new SSH agent..."
+     /usr/bin/ssh-agent | sed 's/^echo/#echo/' &gt; ${SSH_ENV}
+     echo succeeded
+     chmod 600 ${SSH_ENV}
+     . ${SSH_ENV} &gt; /dev/null
+     /usr/bin/ssh-add;
+}
+
+# Source SSH settings, if applicable
+
+if [ -f "${SSH_ENV}" ]; then
+     . ${SSH_ENV} &gt; /dev/null
+     #ps ${SSH_AGENT_PID} doesn't work under cywgin
+     ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ &gt; /dev/null || {
+         start_agent;
+     }
+else
+     start_agent;
+fi
+</code></pre>
+
+<p>把上面这段内容直接保存到<code>~/.bashrc</code>文件中，然后执行<code>source ~/.bashrc</code>进行加载。</p>
+
+<h3 id="key">添加key</h3>
+<p>然后进入<code>~/.ssh/config</code>目录，添加key：</p>
+
+<pre><code>cd ~/.ssh/config
+ssh-add  bitbucket_id_rsa
+</code></pre>
+
+<h3 id="section">测试</h3>
+<p>输入下面命令确认能与Bitbucket网站SSH通信：</p>
+
+<pre><code>ssh -T git@bitbucket.org
+</code></pre>
+
+<p>如果出现下面的信息：</p>
+
+<pre><code>conq: logged in as jscon.
+You can use git or hg to connect to Bitbucket. Shell access is disabled.
+</code></pre>
+
+<p>则说明你已经能用这个key与bitbucket网站SSH通信了。</p>
 
 <h2 id="config">创建config文件</h2>
 <p>在<code>~/.ssh/config</code>文件中，填写如下内容：</p>
@@ -202,7 +253,7 @@ $ssh-keygen
 
 <p>你会发现速度较之前是天壤之别。</p>
 
-<h2 id="section">参考资料</h2>
+<h2 id="section-1">参考资料</h2>
 <ul>
   <li><a href="http://www.cnblogs.com/boychenney/archive/2013/04/09/bitbucket_collaboration_with_ssh.html">Bitbucket上使用SSH协作</a></li>
   <li><a href="http://stackoverflow.com/questions/31660263/bitbucket-ssh-public-key-is-being-denied-but-their-ssh-test-connects-with-no-iss">Bitbucket ssh public key is being denied but their ssh test connects with no issue</a></li>
